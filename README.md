@@ -1,6 +1,6 @@
 # India Telecom Plans Scraper - Jio, Airtel, Vi & BSNL
 
-Collect current public prepaid plan data from the official Jio, Airtel, Vi, and BSNL websites. The Actor combines Jio's public plan catalog with browser-rendered Airtel, Vi, and BSNL pages, then returns one normalized record per unique plan.
+Collect current public prepaid plan data from the official Jio, Airtel, Vi, and BSNL websites. The Actor reads Jio's and BSNL's public plan catalogs directly and renders the Airtel and Vi pages in a browser, then returns one normalized record per unique plan.
 
 ## What It Collects
 
@@ -85,7 +85,7 @@ You are charged only after a clean unique plan is saved to the dataset. The Acto
 
 ## Reliability Notes
 
-Telecom catalogs can be regional and change frequently. India residential proxies are recommended for Airtel, Vi, and BSNL. Jio records come from Jio's public plan configuration; Airtel, Vi, and BSNL records are read from their official public plan pages.
+Telecom catalogs can be regional and change frequently. India residential proxies are recommended for Airtel, Vi, and BSNL. Jio and BSNL records come from their official public plan catalogs; Airtel and Vi records are read from their official public recharge pages.
 
 ## Responsible Use
 
