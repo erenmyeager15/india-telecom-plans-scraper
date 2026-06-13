@@ -1,0 +1,24 @@
+{
+  "name": "india-telecom-plans-scraper",
+  "version": "1.0.0",
+  "description": "Apify Actor for public prepaid plan data from Jio, Airtel, and Vi.",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main.js"
+  },
+  "keywords": ["apify", "actor", "jio", "airtel", "vi", "telecom", "prepaid", "india"],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "apify": "^3.4.2",
+    "crawlee": "^3.15.1",
+    "playwright": "^1.60.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

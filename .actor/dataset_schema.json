@@ -1,0 +1,56 @@
+{
+  "actorSpecification": 1,
+  "fields": {
+    "source": { "type": "string" },
+    "operator": { "type": "string" },
+    "planType": { "type": "string" },
+    "position": { "type": "integer" },
+    "category": { "type": ["string", "null"] },
+    "planId": { "type": ["string", "null"] },
+    "planName": { "type": "string" },
+    "price": { "type": "number" },
+    "currency": { "type": "string" },
+    "validity": { "type": ["string", "null"] },
+    "data": { "type": ["string", "null"] },
+    "totalData": { "type": ["string", "null"] },
+    "voice": { "type": ["string", "null"] },
+    "sms": { "type": ["string", "null"] },
+    "benefits": { "type": "array", "items": { "type": "string" } },
+    "ottBenefits": { "type": "array", "items": { "type": "string" } },
+    "networkType": { "type": ["string", "null"] },
+    "circle": { "type": ["string", "null"] },
+    "rechargeUrl": { "type": "string" },
+    "scrapedAt": { "type": "string" }
+  },
+  "views": {
+    "overview": {
+      "title": "Plans",
+      "transformation": {
+        "fields": [
+          "source", "operator", "category", "planName", "price", "validity", "data",
+          "voice", "sms", "networkType", "circle", "benefits", "ottBenefits", "rechargeUrl", "scrapedAt"
+        ]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "source": { "label": "Source", "format": "text" },
+          "operator": { "label": "Operator", "format": "text" },
+          "category": { "label": "Category", "format": "text" },
+          "planName": { "label": "Plan", "format": "text" },
+          "price": { "label": "Price (INR)", "format": "number" },
+          "validity": { "label": "Validity", "format": "text" },
+          "data": { "label": "Data", "format": "text" },
+          "voice": { "label": "Calls", "format": "text" },
+          "sms": { "label": "SMS", "format": "text" },
+          "networkType": { "label": "Network", "format": "text" },
+          "circle": { "label": "Circle", "format": "text" },
+          "benefits": { "label": "Benefits", "format": "array" },
+          "ottBenefits": { "label": "OTT Benefits", "format": "array" },
+          "rechargeUrl": { "label": "Recharge URL", "format": "link" },
+          "scrapedAt": { "label": "Scraped At", "format": "date" }
+        }
+      }
+    }
+  }
+}

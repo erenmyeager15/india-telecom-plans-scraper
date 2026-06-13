@@ -1,0 +1,10 @@
+{
+  "operators": ["jio", "airtel", "vi"],
+  "categories": [],
+  "minPrice": 0,
+  "maxPrice": 5000,
+  "maxResults": 10,
+  "proxyConfiguration": {
+    "useApifyProxy": false
+  }
+}
