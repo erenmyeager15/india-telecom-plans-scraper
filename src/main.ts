@@ -1,5 +1,6 @@
 import { Actor, log } from 'apify';
 import { PlaywrightCrawler } from 'crawlee';
+import { fetch as undiciFetch, ProxyAgent } from 'undici';
 import { BSNL_PREPAID_URL, extractAirtelPlans, extractViPlansFromText, isBlockedPage, parseBsnlPlans, parseJioPlans } from './routes.js';
 import type { ActorInput, RequestData, TelecomOperator, TelecomPlanRecord } from './types.js';
 
@@ -104,20 +105,40 @@ if (operators.includes('bsnl') && savedCount < maxResults && !spendingLimitReach
             'sec-fetch-site': 'same-origin',
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125 Safari/537.36',
         };
-        const pageResponse = await fetch(BSNL_PREPAID_URL, {
-            headers,
-            signal: AbortSignal.timeout(30_000),
-        });
-        if (!pageResponse.ok) throw new Error(`Session page HTTP ${pageResponse.status}`);
-        const cookie = pageResponse.headers.getSetCookie?.().join('; ')
-            ?? pageResponse.headers.get('set-cookie')
-            ?? '';
-        const response = await fetch(BSNL_POPULAR_PLANS_URL, {
-            headers: { ...headers, cookie },
-            signal: AbortSignal.timeout(30_000),
-        });
-        if (!response.ok) throw new Error(`Plan API HTTP ${response.status}`);
-        const plans = parseBsnlPlans(await response.json());
+        const getBsnlPlans = async (proxyUrl?: string): Promise<TelecomPlanRecord[]> => {
+            const dispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : undefined;
+            const pageResponse = await undiciFetch(BSNL_PREPAID_URL, {
+                headers,
+                dispatcher,
+                signal: AbortSignal.timeout(30_000),
+            });
+            if (!pageResponse.ok) throw new Error(`Session page HTTP ${pageResponse.status}`);
+            const cookie = pageResponse.headers.getSetCookie().join('; ');
+            const response = await undiciFetch(BSNL_POPULAR_PLANS_URL, {
+                headers: { ...headers, cookie },
+                dispatcher,
+                signal: AbortSignal.timeout(30_000),
+            });
+            if (!response.ok) throw new Error(`Plan API HTTP ${response.status}`);
+            return parseBsnlPlans(await response.json());
+        };
+
+        let plans: TelecomPlanRecord[] = [];
+        try {
+            plans = await getBsnlPlans();
+        } catch (directError) {
+            log.warning('Direct BSNL fetch failed; retrying through Apify Proxy', { error: String(directError) });
+            const bsnlProxyConfiguration = await Actor.createProxyConfiguration(
+                input.proxyConfiguration ?? {
+                    useApifyProxy: true,
+                    apifyProxyGroups: ['RESIDENTIAL'],
+                    apifyProxyCountry: 'IN',
+                },
+            );
+            const proxyUrl = await bsnlProxyConfiguration?.newUrl('bsnl-api');
+            if (!proxyUrl) throw directError;
+            plans = await getBsnlPlans(proxyUrl);
+        }
         if (plans.length === 0) throw new Error('The official BSNL catalog returned no plans.');
         const remainingSources = Math.max(operators.length - processedSourceCount, 1);
         const sourceLimit = Math.ceil((maxResults - savedCount) / remainingSources);

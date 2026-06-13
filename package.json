@@ -8,12 +8,23 @@
     "build": "tsc",
     "start": "node dist/main.js"
   },
-  "keywords": ["apify", "actor", "jio", "airtel", "vi", "bsnl", "telecom", "prepaid", "india"],
+  "keywords": [
+    "apify",
+    "actor",
+    "jio",
+    "airtel",
+    "vi",
+    "bsnl",
+    "telecom",
+    "prepaid",
+    "india"
+  ],
   "license": "Apache-2.0",
   "dependencies": {
     "apify": "^3.4.2",
     "crawlee": "^3.15.1",
-    "playwright": "^1.60.0"
+    "playwright": "^1.60.0",
+    "undici": "^8.4.1"
   },
   "devDependencies": {
     "typescript": "^5.8.3"
