@@ -17,7 +17,7 @@ export interface ActorInput {
 }
 
 export interface RequestData {
-    operator: Exclude<TelecomOperator, 'jio'>;
+    operator: Exclude<TelecomOperator, 'jio' | 'bsnl'>;
 }
 
 export interface TelecomPlanRecord {

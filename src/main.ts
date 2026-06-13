@@ -1,13 +1,13 @@
 import { Actor, log } from 'apify';
 import { PlaywrightCrawler } from 'crawlee';
-import { extractAirtelPlans, extractBsnlPlansFromPage, extractViPlansFromText, isBlockedPage, parseJioPlans } from './routes.js';
+import { BSNL_PREPAID_URL, extractAirtelPlans, extractViPlansFromText, isBlockedPage, parseBsnlPlans, parseJioPlans } from './routes.js';
 import type { ActorInput, RequestData, TelecomOperator, TelecomPlanRecord } from './types.js';
 
 const JIO_CONFIG_URL = 'https://myjiostatic.cdn.jio.com/jiocom/static/plans-config/prepaidPlansConfig.json';
+const BSNL_POPULAR_PLANS_URL = 'https://bsnl.co.in/api/bsnl-proxy/myBsnlApp/rest/v2.0/prepaidvouchers/circleid/1/zoneid/3/tabname/POPULAR';
 const SOURCE_URLS = {
     airtel: 'https://www.airtel.in/recharge-online',
     vi: 'https://www.myvi.in/prepaid/online-mobile-recharge',
-    bsnl: 'https://bsnl.co.in/pricing-plans/prepaid',
 } as const;
 
 await Actor.init();
@@ -94,10 +94,46 @@ if (operators.includes('jio')) {
     }
 }
 
+if (operators.includes('bsnl') && savedCount < maxResults && !spendingLimitReached) {
+    try {
+        const headers = {
+            accept: '*/*',
+            referer: BSNL_PREPAID_URL,
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125 Safari/537.36',
+        };
+        const pageResponse = await fetch(BSNL_PREPAID_URL, {
+            headers,
+            signal: AbortSignal.timeout(30_000),
+        });
+        if (!pageResponse.ok) throw new Error(`Session page HTTP ${pageResponse.status}`);
+        const cookie = pageResponse.headers.getSetCookie?.().join('; ')
+            ?? pageResponse.headers.get('set-cookie')
+            ?? '';
+        const response = await fetch(BSNL_POPULAR_PLANS_URL, {
+            headers: { ...headers, cookie },
+            signal: AbortSignal.timeout(30_000),
+        });
+        if (!response.ok) throw new Error(`Plan API HTTP ${response.status}`);
+        const plans = parseBsnlPlans(await response.json());
+        if (plans.length === 0) throw new Error('The official BSNL catalog returned no plans.');
+        const remainingSources = Math.max(operators.length - processedSourceCount, 1);
+        const sourceLimit = Math.ceil((maxResults - savedCount) / remainingSources);
+        await savePlans(plans, sourceLimit);
+        log.info(`Processed ${plans.length} official BSNL plans`, { totalSaved: savedCount });
+    } catch (error) {
+        log.error('BSNL plan collection failed', { error: String(error) });
+    } finally {
+        processedSourceCount += 1;
+    }
+}
+
 const browserOperators = operators
-    .filter((operator): operator is 'airtel' | 'vi' | 'bsnl' => operator !== 'jio')
+    .filter((operator): operator is 'airtel' | 'vi' => operator !== 'jio' && operator !== 'bsnl')
     .sort((left, right) => {
-        const order: Record<'airtel' | 'vi' | 'bsnl', number> = { vi: 0, bsnl: 1, airtel: 2 };
+        const order: Record<'airtel' | 'vi', number> = { vi: 0, airtel: 1 };
         return order[left] - order[right];
     });
 if (browserOperators.length > 0 && savedCount < maxResults && !spendingLimitReached) {
@@ -153,17 +189,12 @@ if (browserOperators.length > 0 && savedCount < maxResults && !spendingLimitReac
             if (operator === 'airtel') {
                 await page.locator('.pack-card-container').first().waitFor({ state: 'visible', timeout: 60_000 });
                 plans = await extractAirtelPlans(page);
-            } else if (operator === 'vi') {
+            } else {
                 await page.getByText('popular recharge packs', { exact: false }).first()
                     .waitFor({ state: 'visible', timeout: 60_000 });
                 await page.waitForTimeout(5_000);
                 const body = await page.locator('body').innerText();
                 plans = extractViPlansFromText(body);
-            } else {
-                await page.getByText('Popular', { exact: true }).first()
-                    .waitFor({ state: 'visible', timeout: 60_000 });
-                await page.waitForTimeout(5_000);
-                plans = await extractBsnlPlansFromPage(page);
             }
 
             const title = await page.title().catch(() => '');

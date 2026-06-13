@@ -4,7 +4,7 @@ import type { TelecomPlanRecord } from './types.js';
 const JIO_RECHARGE_URL = 'https://www.jio.com/selfcare/plans/mobility/prepaid-plans-list/';
 const AIRTEL_RECHARGE_URL = 'https://www.airtel.in/recharge-online';
 const VI_RECHARGE_URL = 'https://www.myvi.in/prepaid/online-mobile-recharge';
-const BSNL_PREPAID_URL = 'https://bsnl.co.in/pricing-plans/prepaid';
+export const BSNL_PREPAID_URL = 'https://bsnl.co.in/pricing-plans/prepaid';
 
 const clean = (value: unknown): string | null => {
     if (typeof value !== 'string') return null;
@@ -155,47 +155,40 @@ export const extractAirtelPlans = async (page: Page): Promise<TelecomPlanRecord[
     });
 };
 
-export const extractBsnlPlansFromPage = async (page: Page): Promise<TelecomPlanRecord[]> => {
-    await page.waitForFunction(() => (
-        [...document.querySelectorAll('main div')].some((element) => /₹\s*\d+/.test(element.textContent ?? ''))
-    ), null, { timeout: 60_000 });
-
-    const rawPlans = await page.locator('main div.bg-white.rounded-xl').evaluateAll((cards) => cards.map((card, index) => {
-        const text = card.textContent?.replace(/\s+/g, ' ').trim() ?? '';
-        const category = card.querySelector('h4')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
-        const priceText = [...card.querySelectorAll('span')]
-            .map((span) => span.textContent?.replace(/\s+/g, ' ').trim() ?? '')
-            .find((value) => /^₹\s*\d+/.test(value)) ?? '';
-        const validityText = card.querySelector('.text-sky-600')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
-        const description = [...card.querySelectorAll('p')]
-            .map((paragraph) => paragraph.textContent?.replace(/\s+/g, ' ').trim() ?? '')
-            .find(Boolean) ?? '';
-        return { index, category, priceText, validityText, description, text };
-    }));
-
+export const parseBsnlPlans = (payload: unknown): TelecomPlanRecord[] => {
+    const rows = arrayValue(objectValue(objectValue(payload)?.ROWSET)?.ROW)
+        .map(objectValue)
+        .filter((row): row is Record<string, unknown> => Boolean(row));
     const scrapedAt = new Date().toISOString();
-    return rawPlans.flatMap((raw) => {
-        const price = numberValue(raw.priceText);
+
+    return rows.flatMap((plan, index) => {
+        const price = numberValue(plan.DENOMINATION);
         if (price === null) return [];
-        const description = clean(raw.description) ?? clean(raw.text);
+        const description = clean(plan.DESCRIPTION);
         if (!description) return [];
-        const benefits = uniqueStrings(description.split(/[;|]+/).map((part) => part.trim()));
-        const data = description.match(/(?:^|\b)(?:unlimited\s+)?\d+(?:\.\d+)?\s*(?:GB|MB)(?:\s*\/\s*day)?/i)?.[0] ?? null;
-        const sms = description.match(/\d+\s*SMS(?:\s*\/\s*day)?/i)?.[0] ?? null;
-        const voice = /unlimited\s+(?:voice|calls?)/i.test(description) ? 'Unlimited calls' : null;
-        const searchable = [raw.category, description].filter(Boolean).join(' ');
+        const validityRaw = clean(typeof plan.VALIDITY === 'number' ? String(plan.VALIDITY) : plan.VALIDITY);
+        const validity = validityRaw && /^\d+$/.test(validityRaw) ? `${validityRaw} Days` : validityRaw;
+        const data = clean(plan.DATA_PLAN_VALUE)
+            ?? description.match(/(?:^|\b)(?:unlimited\s+)?\d+(?:\.\d+)?\s*(?:GB|MB)(?:\s*\/\s*day)?/i)?.[0]
+            ?? null;
+        const sms = clean(plan.SMS_PLAN_VALUE);
+        const voice = clean(plan.VOICE_PLAN_VALUE)
+            ?? (/unlimited\s+(?:voice|calls?)/i.test(description) ? 'Unlimited calls' : null);
+        const category = clean(plan.TAB_NAME) ?? clean(plan.VOUCHER_TYPE) ?? 'Popular';
+        const benefits = uniqueStrings([description, clean(plan.HEADER_TEXT)]);
+        const searchable = [category, data, voice, sms, description].filter(Boolean).join(' ');
 
         return [{
             source: 'bsnl',
             operator: 'BSNL',
             planType: 'prepaid',
-            position: raw.index + 1,
-            category: clean(raw.category) ?? 'Popular',
-            planId: null,
+            position: index + 1,
+            category,
+            planId: clean(`${plan.CIRCLEID ?? ''}-${plan.ZONEID ?? ''}-${plan.DENOMINATION ?? ''}-${plan.VOUCHER_TYPE ?? ''}-${plan.VALIDITY ?? ''}`),
             planName: `BSNL prepaid plan INR ${price}`,
             price,
             currency: 'INR',
-            validity: clean(raw.validityText),
+            validity,
             data,
             totalData: data && !/day/i.test(data) ? data : null,
             voice,
@@ -203,7 +196,7 @@ export const extractBsnlPlansFromPage = async (page: Page): Promise<TelecomPlanR
             benefits,
             ottBenefits: benefits.filter(isOttBenefit),
             networkType: /\b5g\b/i.test(searchable) ? '5G' : null,
-            circle: 'India',
+            circle: clean(plan.CIRCLE),
             rechargeUrl: BSNL_PREPAID_URL,
             scrapedAt,
         } satisfies TelecomPlanRecord];
