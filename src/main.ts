@@ -135,7 +135,7 @@ if (operators.includes('bsnl') && savedCount < maxResults && !spendingLimitReach
                     apifyProxyCountry: 'IN',
                 },
             );
-            const proxyUrl = await bsnlProxyConfiguration?.newUrl('bsnl-api');
+            const proxyUrl = await bsnlProxyConfiguration?.newUrl('bsnl_api');
             if (!proxyUrl) throw directError;
             plans = await getBsnlPlans(proxyUrl);
         }
