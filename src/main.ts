@@ -26,6 +26,7 @@ if (operators.length === 0) throw new Error('Select at least one operator: Jio, 
 const seenKeys = new Set<string>();
 let savedCount = 0;
 let spendingLimitReached = false;
+let processedSourceCount = 0;
 
 const planKey = (plan: TelecomPlanRecord): string => [
     plan.source,
@@ -46,9 +47,10 @@ const matchesFilters = (plan: TelecomPlanRecord): boolean => {
     return categoryFilters.some((filter) => searchable.includes(filter));
 };
 
-const savePlans = async (plans: TelecomPlanRecord[]): Promise<void> => {
+const savePlans = async (plans: TelecomPlanRecord[], sourceLimit = Number.POSITIVE_INFINITY): Promise<void> => {
+    let sourceSavedCount = 0;
     for (const plan of plans) {
-        if (savedCount >= maxResults || spendingLimitReached) break;
+        if (savedCount >= maxResults || spendingLimitReached || sourceSavedCount >= sourceLimit) break;
         if (!matchesFilters(plan)) continue;
         const key = planKey(plan);
         if (seenKeys.has(key)) continue;
@@ -57,6 +59,7 @@ const savePlans = async (plans: TelecomPlanRecord[]): Promise<void> => {
         await Actor.pushData(plan);
         const chargeResult = await Actor.charge({ eventName: 'plan-scraped' });
         savedCount += 1;
+        sourceSavedCount += 1;
 
         if (chargeResult.eventChargeLimitReached) {
             spendingLimitReached = true;
@@ -79,14 +82,20 @@ if (operators.includes('jio')) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const plans = parseJioPlans(await response.json());
         if (plans.length === 0) throw new Error('The official Jio catalog returned no plans.');
-        await savePlans(plans);
+        const remainingSources = Math.max(operators.length - processedSourceCount, 1);
+        const sourceLimit = Math.ceil((maxResults - savedCount) / remainingSources);
+        await savePlans(plans, sourceLimit);
         log.info(`Processed ${plans.length} official Jio plans`, { totalSaved: savedCount });
     } catch (error) {
         log.error('Jio plan collection failed', { error: String(error) });
+    } finally {
+        processedSourceCount += 1;
     }
 }
 
-const browserOperators = operators.filter((operator): operator is 'airtel' | 'vi' => operator !== 'jio');
+const browserOperators = operators
+    .filter((operator): operator is 'airtel' | 'vi' => operator !== 'jio')
+    .sort((left, right) => (left === right ? 0 : left === 'vi' ? -1 : 1));
 if (browserOperators.length > 0 && savedCount < maxResults && !spendingLimitReached) {
     const proxyConfiguration = await Actor.createProxyConfiguration(
         input.proxyConfiguration ?? {
@@ -159,12 +168,16 @@ if (browserOperators.length > 0 && savedCount < maxResults && !spendingLimitReac
                 throw new Error(`No ${operator} plans were found on the official page.`);
             }
 
-            await savePlans(plans);
+            const remainingSources = Math.max(operators.length - processedSourceCount, 1);
+            const sourceLimit = Math.ceil((maxResults - savedCount) / remainingSources);
+            await savePlans(plans, sourceLimit);
+            processedSourceCount += 1;
             log.info(`Processed ${plans.length} ${operator} plans`, { totalSaved: savedCount });
             if (spendingLimitReached || savedCount >= maxResults) await crawler.autoscaledPool?.abort();
             if (!spendingLimitReached) await Actor.setStatusMessage(`Saved ${savedCount}/${maxResults} telecom plans`);
         },
         failedRequestHandler: async ({ request }, error) => {
+            processedSourceCount += 1;
             log.error(`Official telecom page failed after retries: ${request.url}`, { error: String(error) });
         },
     });
