@@ -1,8 +1,8 @@
 {
   "actorSpecification": 1,
   "name": "india-telecom-plans-scraper",
-  "title": "India Telecom Plans Scraper - Jio, Airtel & Vi",
-  "description": "Collect public prepaid plans from Jio, Airtel, and Vi, including price, validity, data, calls, SMS, network type, OTT benefits, circle, and recharge URLs.",
+  "title": "India Telecom Plans Scraper - Jio, Airtel, Vi & BSNL",
+  "description": "Collect public prepaid plans from Jio, Airtel, Vi, and BSNL, including price, validity, data, calls, SMS, network type, OTT benefits, circle, and recharge URLs.",
   "version": "1.0",
   "dockerfile": "Dockerfile",
   "input": "../INPUT_SCHEMA.json",

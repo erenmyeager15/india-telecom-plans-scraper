@@ -1,5 +1,5 @@
 {
-  "operators": ["jio", "airtel", "vi"],
+  "operators": ["jio", "airtel", "vi", "bsnl"],
   "categories": [],
   "minPrice": 0,
   "maxPrice": 5000,

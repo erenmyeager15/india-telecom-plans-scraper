@@ -1,19 +1,20 @@
 import { Actor, log } from 'apify';
 import { PlaywrightCrawler } from 'crawlee';
-import { extractAirtelPlans, extractViPlansFromText, isBlockedPage, parseJioPlans } from './routes.js';
+import { extractAirtelPlans, extractBsnlPlansFromPage, extractViPlansFromText, isBlockedPage, parseJioPlans } from './routes.js';
 import type { ActorInput, RequestData, TelecomOperator, TelecomPlanRecord } from './types.js';
 
 const JIO_CONFIG_URL = 'https://myjiostatic.cdn.jio.com/jiocom/static/plans-config/prepaidPlansConfig.json';
 const SOURCE_URLS = {
     airtel: 'https://www.airtel.in/recharge-online',
     vi: 'https://www.myvi.in/prepaid/online-mobile-recharge',
+    bsnl: 'https://bsnl.co.in/pricing-plans/prepaid',
 } as const;
 
 await Actor.init();
 
 const input = (await Actor.getInput<ActorInput>()) ?? {};
-const allowedOperators = new Set<TelecomOperator>(['jio', 'airtel', 'vi']);
-const requestedOperators: TelecomOperator[] = input.operators ?? ['jio', 'airtel', 'vi'];
+const allowedOperators = new Set<TelecomOperator>(['jio', 'airtel', 'vi', 'bsnl']);
+const requestedOperators: TelecomOperator[] = input.operators ?? ['jio', 'airtel', 'vi', 'bsnl'];
 const operators = [...new Set<TelecomOperator>(requestedOperators)]
     .filter((operator): operator is TelecomOperator => allowedOperators.has(operator));
 const categoryFilters = (input.categories ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean);
@@ -21,7 +22,7 @@ const minPrice = Math.max(input.minPrice ?? 0, 0);
 const maxPrice = Math.max(input.maxPrice ?? 100_000, minPrice);
 const maxResults = Math.min(Math.max(input.maxResults ?? 100, 1), 500);
 
-if (operators.length === 0) throw new Error('Select at least one operator: Jio, Airtel, or Vi.');
+if (operators.length === 0) throw new Error('Select at least one operator: Jio, Airtel, Vi, or BSNL.');
 
 const seenKeys = new Set<string>();
 let savedCount = 0;
@@ -94,8 +95,11 @@ if (operators.includes('jio')) {
 }
 
 const browserOperators = operators
-    .filter((operator): operator is 'airtel' | 'vi' => operator !== 'jio')
-    .sort((left, right) => (left === right ? 0 : left === 'vi' ? -1 : 1));
+    .filter((operator): operator is 'airtel' | 'vi' | 'bsnl' => operator !== 'jio')
+    .sort((left, right) => {
+        const order: Record<'airtel' | 'vi' | 'bsnl', number> = { vi: 0, bsnl: 1, airtel: 2 };
+        return order[left] - order[right];
+    });
 if (browserOperators.length > 0 && savedCount < maxResults && !spendingLimitReached) {
     const proxyConfiguration = await Actor.createProxyConfiguration(
         input.proxyConfiguration ?? {
@@ -149,12 +153,17 @@ if (browserOperators.length > 0 && savedCount < maxResults && !spendingLimitReac
             if (operator === 'airtel') {
                 await page.locator('.pack-card-container').first().waitFor({ state: 'visible', timeout: 60_000 });
                 plans = await extractAirtelPlans(page);
-            } else {
+            } else if (operator === 'vi') {
                 await page.getByText('popular recharge packs', { exact: false }).first()
                     .waitFor({ state: 'visible', timeout: 60_000 });
                 await page.waitForTimeout(5_000);
                 const body = await page.locator('body').innerText();
                 plans = extractViPlansFromText(body);
+            } else {
+                await page.getByText('Popular', { exact: true }).first()
+                    .waitFor({ state: 'visible', timeout: 60_000 });
+                await page.waitForTimeout(5_000);
+                plans = await extractBsnlPlansFromPage(page);
             }
 
             const title = await page.title().catch(() => '');

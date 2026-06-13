@@ -1,14 +1,14 @@
 {
   "name": "india-telecom-plans-scraper",
   "version": "1.0.0",
-  "description": "Apify Actor for public prepaid plan data from Jio, Airtel, and Vi.",
+  "description": "Apify Actor for public prepaid plan data from Jio, Airtel, Vi, and BSNL.",
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/main.js"
   },
-  "keywords": ["apify", "actor", "jio", "airtel", "vi", "telecom", "prepaid", "india"],
+  "keywords": ["apify", "actor", "jio", "airtel", "vi", "bsnl", "telecom", "prepaid", "india"],
   "license": "Apache-2.0",
   "dependencies": {
     "apify": "^3.4.2",

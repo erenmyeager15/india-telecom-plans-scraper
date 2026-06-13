@@ -4,6 +4,7 @@ import type { TelecomPlanRecord } from './types.js';
 const JIO_RECHARGE_URL = 'https://www.jio.com/selfcare/plans/mobility/prepaid-plans-list/';
 const AIRTEL_RECHARGE_URL = 'https://www.airtel.in/recharge-online';
 const VI_RECHARGE_URL = 'https://www.myvi.in/prepaid/online-mobile-recharge';
+const BSNL_PREPAID_URL = 'https://bsnl.co.in/pricing-plans/prepaid';
 
 const clean = (value: unknown): string | null => {
     if (typeof value !== 'string') return null;
@@ -149,6 +150,61 @@ export const extractAirtelPlans = async (page: Page): Promise<TelecomPlanRecord[
             networkType: /\b5g\b/i.test(searchable) ? '5G' : null,
             circle: 'India',
             rechargeUrl: AIRTEL_RECHARGE_URL,
+            scrapedAt,
+        } satisfies TelecomPlanRecord];
+    });
+};
+
+export const extractBsnlPlansFromPage = async (page: Page): Promise<TelecomPlanRecord[]> => {
+    await page.waitForFunction(() => (
+        [...document.querySelectorAll('main div')].some((element) => /₹\s*\d+/.test(element.textContent ?? ''))
+    ), null, { timeout: 60_000 });
+
+    const rawPlans = await page.locator('main div.bg-white.rounded-xl').evaluateAll((cards) => cards.map((card, index) => {
+        const text = card.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+        const category = card.querySelector('h4')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+        const priceText = [...card.querySelectorAll('span')]
+            .map((span) => span.textContent?.replace(/\s+/g, ' ').trim() ?? '')
+            .find((value) => /^₹\s*\d+/.test(value)) ?? '';
+        const validityText = card.querySelector('.text-sky-600')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+        const description = [...card.querySelectorAll('p')]
+            .map((paragraph) => paragraph.textContent?.replace(/\s+/g, ' ').trim() ?? '')
+            .find(Boolean) ?? '';
+        return { index, category, priceText, validityText, description, text };
+    }));
+
+    const scrapedAt = new Date().toISOString();
+    return rawPlans.flatMap((raw) => {
+        const price = numberValue(raw.priceText);
+        if (price === null) return [];
+        const description = clean(raw.description) ?? clean(raw.text);
+        if (!description) return [];
+        const benefits = uniqueStrings(description.split(/[;|]+/).map((part) => part.trim()));
+        const data = description.match(/(?:^|\b)(?:unlimited\s+)?\d+(?:\.\d+)?\s*(?:GB|MB)(?:\s*\/\s*day)?/i)?.[0] ?? null;
+        const sms = description.match(/\d+\s*SMS(?:\s*\/\s*day)?/i)?.[0] ?? null;
+        const voice = /unlimited\s+(?:voice|calls?)/i.test(description) ? 'Unlimited calls' : null;
+        const searchable = [raw.category, description].filter(Boolean).join(' ');
+
+        return [{
+            source: 'bsnl',
+            operator: 'BSNL',
+            planType: 'prepaid',
+            position: raw.index + 1,
+            category: clean(raw.category) ?? 'Popular',
+            planId: null,
+            planName: `BSNL prepaid plan INR ${price}`,
+            price,
+            currency: 'INR',
+            validity: clean(raw.validityText),
+            data,
+            totalData: data && !/day/i.test(data) ? data : null,
+            voice,
+            sms,
+            benefits,
+            ottBenefits: benefits.filter(isOttBenefit),
+            networkType: /\b5g\b/i.test(searchable) ? '5G' : null,
+            circle: 'India',
+            rechargeUrl: BSNL_PREPAID_URL,
             scrapedAt,
         } satisfies TelecomPlanRecord];
     });

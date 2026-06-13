@@ -1,6 +1,6 @@
 {
   "title": "India Telecom Plans Scraper Input",
-  "description": "Collect public prepaid plan data from the official Jio, Airtel, and Vi websites.",
+  "description": "Collect public prepaid plan data from the official Jio, Airtel, Vi, and BSNL websites.",
   "type": "object",
   "schemaVersion": 1,
   "properties": {
@@ -9,11 +9,11 @@
       "description": "Select one or more Indian telecom operators.",
       "type": "array",
       "editor": "select",
-      "default": ["jio", "airtel", "vi"],
+      "default": ["jio", "airtel", "vi", "bsnl"],
       "items": {
         "type": "string",
-        "enum": ["jio", "airtel", "vi"],
-        "enumTitles": ["Jio", "Airtel", "Vi"]
+        "enum": ["jio", "airtel", "vi", "bsnl"],
+        "enumTitles": ["Jio", "Airtel", "Vi", "BSNL"]
       }
     },
     "categories": {
@@ -50,7 +50,7 @@
     },
     "proxyConfiguration": {
       "title": "Proxy configuration",
-      "description": "India residential proxies are recommended for reliable regional access to Airtel and Vi.",
+      "description": "India residential proxies are recommended for reliable regional access to Airtel, Vi, and BSNL.",
       "type": "object",
       "editor": "proxy",
       "default": {

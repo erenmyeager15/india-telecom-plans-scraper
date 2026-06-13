@@ -1,4 +1,4 @@
-export type TelecomOperator = 'jio' | 'airtel' | 'vi';
+export type TelecomOperator = 'jio' | 'airtel' | 'vi' | 'bsnl';
 
 export interface ProxyInput {
     useApifyProxy?: boolean;
@@ -22,7 +22,7 @@ export interface RequestData {
 
 export interface TelecomPlanRecord {
     source: TelecomOperator;
-    operator: 'Jio' | 'Airtel' | 'Vi';
+    operator: 'Jio' | 'Airtel' | 'Vi' | 'BSNL';
     planType: 'prepaid';
     position: number;
     category: string | null;
