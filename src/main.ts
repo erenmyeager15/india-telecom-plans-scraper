@@ -28,7 +28,15 @@ if (operators.length === 0) throw new Error('Select at least one operator: Jio, 
 const seenKeys = new Set<string>();
 let savedCount = 0;
 let spendingLimitReached = false;
-let processedSourceCount = 0;
+
+const baseSourceLimit = Math.floor(maxResults / operators.length);
+const sourceLimitRemainder = maxResults % operators.length;
+const sourceLimits = new Map<TelecomOperator, number>(
+    operators.map((operator, index) => [
+        operator,
+        baseSourceLimit + (index < sourceLimitRemainder ? 1 : 0),
+    ]),
+);
 
 const planKey = (plan: TelecomPlanRecord): string => [
     plan.source,
@@ -84,14 +92,10 @@ if (operators.includes('jio')) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const plans = parseJioPlans(await response.json());
         if (plans.length === 0) throw new Error('The official Jio catalog returned no plans.');
-        const remainingSources = Math.max(operators.length - processedSourceCount, 1);
-        const sourceLimit = Math.ceil((maxResults - savedCount) / remainingSources);
-        await savePlans(plans, sourceLimit);
+        await savePlans(plans, sourceLimits.get('jio') ?? 0);
         log.info(`Processed ${plans.length} official Jio plans`, { totalSaved: savedCount });
     } catch (error) {
         log.error('Jio plan collection failed', { error: String(error) });
-    } finally {
-        processedSourceCount += 1;
     }
 }
 
@@ -140,14 +144,10 @@ if (operators.includes('bsnl') && savedCount < maxResults && !spendingLimitReach
             plans = await getBsnlPlans(proxyUrl);
         }
         if (plans.length === 0) throw new Error('The official BSNL catalog returned no plans.');
-        const remainingSources = Math.max(operators.length - processedSourceCount, 1);
-        const sourceLimit = Math.ceil((maxResults - savedCount) / remainingSources);
-        await savePlans(plans, sourceLimit);
+        await savePlans(plans, sourceLimits.get('bsnl') ?? 0);
         log.info(`Processed ${plans.length} official BSNL plans`, { totalSaved: savedCount });
     } catch (error) {
         log.error('BSNL plan collection failed', { error: String(error) });
-    } finally {
-        processedSourceCount += 1;
     }
 }
 
@@ -229,16 +229,16 @@ if (browserOperators.length > 0 && savedCount < maxResults && !spendingLimitReac
                 throw new Error(`No ${operator} plans were found on the official page.`);
             }
 
-            const remainingSources = Math.max(operators.length - processedSourceCount, 1);
-            const sourceLimit = Math.ceil((maxResults - savedCount) / remainingSources);
-            await savePlans(plans, sourceLimit);
-            processedSourceCount += 1;
+            await savePlans(plans, sourceLimits.get(operator) ?? 0);
             log.info(`Processed ${plans.length} ${operator} plans`, { totalSaved: savedCount });
             if (spendingLimitReached || savedCount >= maxResults) await crawler.autoscaledPool?.abort();
             if (!spendingLimitReached) await Actor.setStatusMessage(`Saved ${savedCount}/${maxResults} telecom plans`);
         },
+        errorHandler: async ({ request, session }, error) => {
+            session?.markBad();
+            log.warning(`Retrying ${request.url} with a fresh browser session`, { error: String(error) });
+        },
         failedRequestHandler: async ({ request }, error) => {
-            processedSourceCount += 1;
             log.error(`Official telecom page failed after retries: ${request.url}`, { error: String(error) });
         },
     });
