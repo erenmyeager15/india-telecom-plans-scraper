@@ -128,21 +128,38 @@ if (operators.includes('bsnl') && savedCount < maxResults && !spendingLimitReach
         };
 
         let plans: TelecomPlanRecord[] = [];
-        try {
-            plans = await getBsnlPlans();
-        } catch (directError) {
-            log.warning('Direct BSNL fetch failed; retrying through Apify Proxy', { error: String(directError) });
-            const bsnlProxyConfiguration = await Actor.createProxyConfiguration(
-                input.proxyConfiguration ?? {
-                    useApifyProxy: true,
-                    apifyProxyGroups: ['RESIDENTIAL'],
-                    apifyProxyCountry: 'IN',
-                },
-            );
-            const proxyUrl = await bsnlProxyConfiguration?.newUrl('bsnl_api');
-            if (!proxyUrl) throw directError;
-            plans = await getBsnlPlans(proxyUrl);
+        let lastError: unknown;
+        let bsnlProxyConfiguration: Awaited<ReturnType<typeof Actor.createProxyConfiguration>> | undefined;
+
+        for (let attempt = 1; attempt <= 4 && plans.length === 0; attempt += 1) {
+            try {
+                let proxyUrl: string | undefined;
+                if (attempt > 1) {
+                    bsnlProxyConfiguration ??= await Actor.createProxyConfiguration(
+                        input.proxyConfiguration ?? {
+                            useApifyProxy: true,
+                            apifyProxyGroups: ['RESIDENTIAL'],
+                            apifyProxyCountry: 'IN',
+                        },
+                    );
+                    proxyUrl = await bsnlProxyConfiguration?.newUrl(`bsnl_api_${attempt}_${Date.now()}`);
+                    if (!proxyUrl) throw new Error('No proxy URL was available for the BSNL retry.');
+                }
+
+                plans = await getBsnlPlans(proxyUrl);
+                if (plans.length === 0) throw new Error('The official BSNL catalog returned no plans.');
+            } catch (error) {
+                lastError = error;
+                plans = [];
+                log.warning(`BSNL attempt ${attempt}/4 failed`, {
+                    route: attempt === 1 ? 'direct' : 'residential proxy',
+                    error: String(error),
+                });
+                if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, attempt * 1_500));
+            }
         }
+
+        if (plans.length === 0 && lastError) throw lastError;
         if (plans.length === 0) throw new Error('The official BSNL catalog returned no plans.');
         await savePlans(plans, sourceLimits.get('bsnl') ?? 0);
         log.info(`Processed ${plans.length} official BSNL plans`, { totalSaved: savedCount });
