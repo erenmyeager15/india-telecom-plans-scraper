@@ -1,0 +1,14 @@
+{
+  "actorOutputSchemaVersion": 1,
+  "title": "India Telecom Plans Output",
+  "description": "Structured Indian telecom plan records from supported operators, including operator, category, plan name, price, validity, data, calls, SMS, network type, circle, benefits, OTT benefits, recharge URL, and scraped timestamp.",
+  "type": "object",
+  "properties": {
+    "results": {
+      "type": "string",
+      "title": "Telecom plan records",
+      "description": "Clean dataset items containing public Indian prepaid plan details for Jio, Airtel, Vi, BSNL, and supported telecom sources.",
+      "template": "{{links.apiDefaultDatasetUrl}}/items"
+    }
+  }
+}

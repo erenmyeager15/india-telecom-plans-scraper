@@ -1,9 +1,9 @@
 {
-  "operators": ["jio", "airtel", "vi", "bsnl"],
+  "operators": ["jio"],
   "categories": [],
   "minPrice": 0,
   "maxPrice": 5000,
-  "maxResults": 10,
+  "maxResults": 5,
   "proxyConfiguration": {
     "useApifyProxy": true,
     "apifyProxyGroups": ["RESIDENTIAL"],

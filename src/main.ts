@@ -28,6 +28,7 @@ if (operators.length === 0) throw new Error('Select at least one operator: Jio, 
 const seenKeys = new Set<string>();
 let savedCount = 0;
 let spendingLimitReached = false;
+const PLAN_SCRAPED_EVENT = 'plan-scraped';
 
 const baseSourceLimit = Math.floor(maxResults / operators.length);
 const sourceLimitRemainder = maxResults % operators.length;
@@ -65,9 +66,17 @@ const savePlans = async (plans: TelecomPlanRecord[], sourceLimit = Number.POSITI
         const key = planKey(plan);
         if (seenKeys.has(key)) continue;
 
+        const chargeResult = await Actor.pushData(plan, PLAN_SCRAPED_EVENT);
+        const recordWasSaved = chargeResult.chargedCount > 0
+            || !chargeResult.eventChargeLimitReached;
+        if (!recordWasSaved) {
+            spendingLimitReached = true;
+            await Actor.setStatusMessage(`Stopped at the user's spending limit after ${savedCount} plans`);
+            log.info('User spending limit reached before saving another plan record.');
+            break;
+        }
+
         seenKeys.add(key);
-        await Actor.pushData(plan);
-        const chargeResult = await Actor.charge({ eventName: 'plan-scraped' });
         savedCount += 1;
         sourceSavedCount += 1;
 
@@ -199,6 +208,7 @@ if (browserOperators.length > 0 && savedCount < maxResults && !spendingLimitReac
         retryOnBlocked: true,
         requestHandlerTimeoutSecs: 180,
         maxRequestsPerCrawl: requests.length,
+        maxSessionRotations: 3,
         sessionPoolOptions: {
             maxPoolSize: 30,
             sessionOptions: { maxUsageCount: 30 },

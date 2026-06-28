@@ -40,7 +40,7 @@ Unavailable values are returned as `null`; the Actor never invents missing plan 
 }
 ```
 
-## Output Example
+## Output dataset
 
 ```json
 {
@@ -79,7 +79,8 @@ Unavailable values are returned as `null`; the Actor never invents missing plan 
 
 | Event | Price |
 |---|---:|
-| `plan-scraped` | $0.001 per saved plan |
+| `apify-actor-start` | $0.001 / GB |
+| `plan-scraped` | $0.002 per saved plan |
 
 You are charged only after a clean unique plan is saved to the dataset. The Actor stops collecting more records when the user's maximum run charge is reached.
 
