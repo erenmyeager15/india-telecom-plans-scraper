@@ -15,13 +15,13 @@ await Actor.init();
 
 const input = (await Actor.getInput<ActorInput>()) ?? {};
 const allowedOperators = new Set<TelecomOperator>(['jio', 'airtel', 'vi', 'bsnl']);
-const requestedOperators: TelecomOperator[] = input.operators ?? ['jio', 'airtel', 'vi', 'bsnl'];
+const requestedOperators: TelecomOperator[] = input.operators ?? ['jio'];
 const operators = [...new Set<TelecomOperator>(requestedOperators)]
     .filter((operator): operator is TelecomOperator => allowedOperators.has(operator));
 const categoryFilters = (input.categories ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean);
 const minPrice = Math.max(input.minPrice ?? 0, 0);
 const maxPrice = Math.max(input.maxPrice ?? 100_000, minPrice);
-const maxResults = Math.min(Math.max(input.maxResults ?? 100, 1), 500);
+const maxResults = Math.min(Math.max(input.maxResults ?? 5, 1), 500);
 
 if (operators.length === 0) throw new Error('Select at least one operator: Jio, Airtel, Vi, or BSNL.');
 

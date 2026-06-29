@@ -5,8 +5,6 @@
   "maxPrice": 5000,
   "maxResults": 5,
   "proxyConfiguration": {
-    "useApifyProxy": true,
-    "apifyProxyGroups": ["RESIDENTIAL"],
-    "apifyProxyCountry": "IN"
+    "useApifyProxy": false
   }
 }

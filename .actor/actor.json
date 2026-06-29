@@ -8,7 +8,7 @@
   "input": "../INPUT_SCHEMA.json",
   "readme": "../README.md",
   "output": "./output_schema.json",
-  "categories": ["AUTOMATION", "OTHER"],
+  "categories": ["BUSINESS", "AUTOMATION", "OTHER"],
   "pricingInfo": {
     "pricingModel": "PAY_PER_EVENT",
     "pricingPerEvent": {

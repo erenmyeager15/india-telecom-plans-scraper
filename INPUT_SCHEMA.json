@@ -15,7 +15,8 @@
         "type": "string",
         "enum": ["jio", "airtel", "vi", "bsnl"],
         "enumTitles": ["Jio", "Airtel", "Vi", "BSNL"]
-      }
+      },
+      "uniqueItems": true
     },
     "categories": {
       "title": "Plan filters",
@@ -52,18 +53,14 @@
     },
     "proxyConfiguration": {
       "title": "Proxy configuration",
-      "description": "India residential proxies are recommended for reliable regional access to Airtel, Vi, and BSNL.",
+      "description": "The Jio sample works without a proxy. Enable an India residential proxy for more reliable Airtel, Vi, and BSNL access.",
       "type": "object",
       "editor": "proxy",
       "default": {
-        "useApifyProxy": true,
-        "apifyProxyGroups": ["RESIDENTIAL"],
-        "apifyProxyCountry": "IN"
+        "useApifyProxy": false
       },
       "prefill": {
-        "useApifyProxy": true,
-        "apifyProxyGroups": ["RESIDENTIAL"],
-        "apifyProxyCountry": "IN"
+        "useApifyProxy": false
       }
     }
   }
